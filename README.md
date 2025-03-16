@@ -1,0 +1,1 @@
+We train several ensemble models in the Winsconsin's University breast cancer dataset. Compare their performance and tune hyperparameters for the best models. We use shapley values to interpret results.
