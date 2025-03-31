@@ -164,7 +164,7 @@ def evaluate_models(model, datasets, scoring='accuracy'):
     results = []
 
     for label, (X, y) in datasets.items():
-        cv_results = cross_validate(model, X, y, cv=5, scoring=scoring, return_train_score=False)
+        cv_results = cross_validate(model, X, y, cv=10, scoring=scoring, return_train_score=False)
 
         result = {"Dataset": label}
 
@@ -210,7 +210,7 @@ def evaluate_multiple_models(models, datasets, scoring='accuracy', groupby='data
 
     for label, (X, y) in datasets.items():
         for model_name, model in models.items():
-            cv_results = cross_validate(model, X, y, cv=5, scoring=scoring, return_train_score=False)
+            cv_results = cross_validate(model, X, y, cv=10, scoring=scoring, return_train_score=False)
 
             result = {"Dataset": label, "Model": model_name}
 
@@ -247,7 +247,7 @@ def evaluate_multiple_models(models, datasets, scoring='accuracy', groupby='data
 
 
 
-def cross_val_confusion(model, X, y, cv=5):
+def cross_val_confusion(model, X, y, cv=10):
     y_pred = cross_val_predict(model, X, y, cv=cv)
     
     cm = confusion_matrix(y, y_pred)
@@ -260,7 +260,7 @@ def cross_val_confusion(model, X, y, cv=5):
     disp.plot(cmap="Blues")
 
 
-def multiple_cross_val_confusions(models, X, y, cv=5, max_cols=4):
+def multiple_cross_val_confusions(models, X, y, cv=10, max_cols=4):
     """
     Plots confusion matrices for a dictionary of models using cross-validation predictions, without color bars,
     and displays them with a maximum of 4 per row.
@@ -296,7 +296,7 @@ def multiple_cross_val_confusions(models, X, y, cv=5, max_cols=4):
 
 
 
-def perform_random_search(model, param_grid, X_train, y_train, scoring_metric, n_iter=20, cv=5, n_jobs=-1, verbose=1):
+def perform_random_search(model, param_grid, X_train, y_train, scoring_metric, n_iter=100, cv=10, n_jobs=-1, verbose=1):
     """
     Performs RandomizedSearchCV on a single model with a given parameter grid.
     
@@ -335,3 +335,31 @@ def perform_random_search(model, param_grid, X_train, y_train, scoring_metric, n
     print(f"Best Parameters for {model.__class__.__name__}: {best_params}")
     
     return {'best_params': best_params, 'best_score': best_score}
+
+
+
+def evaluate_final_model(model, best_params, X_train, y_train, X_test, y_test):
+    """
+    Trains and evaluates a final model using the provided best hyperparameters.
+
+    Args:
+    - model (estimator or class): The model instance.
+    - best_params (dict): Dictionary of best hyperparameters found by RandomizedSearchCV or GridSearchCV.
+    - X_train (array-like): Training features.
+    - y_train (array-like): Training labels.
+    - X_test (array-like): Testing features.
+    - y_test (array-like): Testing labels.
+
+    Returns:
+    - model: Trained model.
+    - report (str): Detailed classification report.
+    """
+    model.set_params(**best_params)
+
+    model.fit(X_train, y_train)
+
+    y_pred = model.predict(X_test)
+
+    report = classification_report(y_test, y_pred)
+    
+    return model, report
