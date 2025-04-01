@@ -10,6 +10,8 @@ import math
 from sklearn.model_selection import cross_val_predict
 from sklearn.metrics import confusion_matrix, classification_report, ConfusionMatrixDisplay
 from sklearn.model_selection import RandomizedSearchCV
+from lime import lime_tabular
+import os
 
 
 def violin_plotter(df: pd.DataFrame, features: list, split_column : str =None, palette : dict =None, ax=None) -> None:
@@ -338,7 +340,7 @@ def perform_random_search(model, param_grid, X_train, y_train, scoring_metric, n
 
 
 
-def evaluate_final_model(model, best_params, X_train, y_train, X_test, y_test):
+def evaluate_final_model(model, best_params, X_train, y_train, X_test, y_test, modelname=None):
     """
     Trains and evaluates a final model using the provided best hyperparameters.
 
@@ -359,7 +361,148 @@ def evaluate_final_model(model, best_params, X_train, y_train, X_test, y_test):
     model.fit(X_train, y_train)
 
     y_pred = model.predict(X_test)
+    print(classification_report(y_test, y_pred))
 
-    report = classification_report(y_test, y_pred)
-    
+    report = pd.DataFrame(classification_report(y_test, y_pred, output_dict=True)).transpose()
+    report = report.iloc[:2].reset_index()  # Resetting index to make it a column
+    report = report.rename(columns={'index': 'Class'})
+    if modelname:
+      report['Model']=modelname
+    else:  
+        report['Model'] = model.__class__.__name__
+    report.set_index(['Model', 'Class'], inplace=True)
+
+
     return model, report
+
+
+def multiple_final_confusions(models, X, y, max_cols=4):
+    """
+    Plots confusion matrices for a dictionary of models using cross-validation predictions, without color bars,
+    and displays them with a maximum of 4 per row.
+    
+    Args:
+        models (dict): A dictionary where keys are model names and values are model instances.
+        X (pd.DataFrame or np.ndarray): Training features.
+        y (pd.Series or np.ndarray): Target labels.
+        cv (int): Number of cross-validation folds. Defaults to 5.
+        max_cols (int): Maximum number of plots per row. Defaults to 4.
+    """
+    n_models = len(models)
+    n_rows = math.ceil(n_models / max_cols)
+    n_cols = min(n_models, max_cols)
+    
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))
+    axes = axes.flatten() if n_models > 1 else [axes]
+    
+    for idx, (model_name, model) in enumerate(models.items()):
+        y_pred = model.predict(X)
+        
+        cm = confusion_matrix(y, y_pred)
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Benign", "Malignant"])
+        disp.plot(ax=axes[idx], cmap="Blues", colorbar=False)
+        axes[idx].set_title(model_name)
+    
+    # Hide unused subplots if any
+    for j in range(idx + 1, len(axes)):
+        axes[j].axis('off')
+    
+    plt.tight_layout()
+    plt.show()
+
+def generate_lime_reports(model, X_train, X_test, model_name, num_instances=100, instances_per_page=10, output_dir="lime_reports"):
+    """
+    Generates paginated LIME reports for a given model and dataset.
+    
+    Parameters:
+    - model: Trained model to explain.
+    - X_train: Training data used to fit the model (for LIME initialization).
+    - X_test: Test data to generate explanations for.
+    - model_name: A string name for the model (e.g., 'best_model_XGB').
+    - num_instances: Total number of instances to explain.
+    - instances_per_page: Number of instances per HTML file.
+    - output_dir: Directory to save the HTML reports.
+    """
+    # Create output directory
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Initialize LIME explainer
+    explainer = lime_tabular.LimeTabularExplainer(
+        X_train.values,
+        feature_names=X_train.columns.tolist(),
+        class_names=['Benign', 'Malign'],
+        mode='classification'
+    )
+
+    # Generate explanations
+    html_explanations = []
+    for i in range(num_instances):
+        exp = explainer.explain_instance(
+            X_test.iloc[i].values,
+            model.predict_proba
+        )
+        html_content = exp.as_html()
+        html_explanations.append(html_content)
+
+    # Save paginated reports
+    num_pages = (num_instances + instances_per_page - 1) // instances_per_page
+    page_files = []
+
+    for page in range(num_pages):
+        start = page * instances_per_page
+        end = min(start + instances_per_page, num_instances)
+        page_file = f"{output_dir}/report_page_{page + 1}.html"
+        page_files.append(page_file)
+        
+        with open(page_file, "w", encoding="utf-8") as outfile:
+            outfile.write(f"""
+            <html>
+            <head>
+                <title>{model_name} - LIME Report - Page {page + 1}</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; }}
+                    h1 {{ text-align: center; }}
+                    h2 {{ color: darkblue; }}
+                    .patient-report {{ page-break-after: always; }}
+                    a {{ text-decoration: none; color: darkred; }}
+                </style>
+            </head>
+            <body>
+            <h1>{model_name} - LIME Report - Page {page + 1}</h1>
+            """)
+            
+            for i in range(start, end):
+                outfile.write(f'<div id="patient_{i}" class="patient-report">')
+                outfile.write(f'<h2>Report for Patient {i}</h2>')
+                outfile.write(html_explanations[i])
+                outfile.write("</div>")
+            
+            outfile.write("</body></html>")
+
+    # Create index file
+    index_file = f"{output_dir}/index.html"
+    with open(index_file, "w", encoding="utf-8") as outfile:
+        outfile.write("""
+        <html>
+        <head>
+            <title>Combined LIME Report - Index</title>
+            <style>
+                body { font-family: Arial, sans-serif; }
+                h1 { text-align: center; }
+                ul { list-style-type: none; }
+                li { margin: 5px 0; }
+                a { text-decoration: none; color: darkred; }
+            </style>
+        </head>
+        <body>
+            <h1>Combined LIME Report - Index</h1>
+            <ul>
+        """)
+
+        for page_num, page_file in enumerate(page_files):
+            outfile.write(f'<li><a href="{os.path.basename(page_file)}">Report Page {page_num + 1}</a></li>')
+
+        outfile.write("</ul></body></html>")
+
+    print(f"LIME reports generated successfully! Check the '{output_dir}' directory.")
+
