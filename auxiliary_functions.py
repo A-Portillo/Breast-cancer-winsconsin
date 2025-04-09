@@ -184,7 +184,7 @@ def evaluate_models(model, datasets :dict, scoring : dict='accuracy') -> pd.Data
 
 
 
-def evaluate_multiple_models(models :dict , datasets: dict, scoring: dict ='accuracy', groupby: str='dataset', ordering :str =None)-> pd.Dataframe:
+def evaluate_multiple_models(models :dict , datasets: dict, scoring: dict ='accuracy', groupby: str='dataset', ordering :str =None)-> pd.DataFrame:
     """
     Evaluates multiple models on multiple datasets using cross-validation.
     Returns a DataFrame with the evaluation results, without standard deviation.
