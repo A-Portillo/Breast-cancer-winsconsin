@@ -30,26 +30,22 @@ def violin_plotter(df: pd.DataFrame, features: list, split_column : str =None, p
     - None (Displays the violin plot inside the given subplot).
     """
 
-    df = df.copy()  # Avoid modifying the original dataset
+    df = df.copy()
 
-    # Standardize the features
     scaler = StandardScaler()
     df_scaled = df.copy()
     df_scaled[features] = scaler.fit_transform(df_scaled[features])
 
-    # Reshape data for Seaborn (Melt the dataframe)
     if split_column and split_column in df.columns:
-        df_scaled[split_column] = df_scaled[split_column].astype('category')  # Ensure categorical type
+        df_scaled[split_column] = df_scaled[split_column].astype('category') 
         df_melted = df_scaled.melt(id_vars=[split_column], value_vars=features, 
                                    var_name="Feature", value_name="Standardized Value")
     else:
         df_melted = df_scaled.melt(value_vars=features, var_name="Feature", value_name="Standardized Value")
-        split_column = None  # Ensure it's set to None for plotting
+        split_column = None  
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(12, 6)) 
-
-    # Create the violin plot
     if split_column:
         sns.violinplot(x="Feature", y="Standardized Value", hue=split_column, data=df_melted, 
                        split=True, inner="quartile", palette=palette, ax=ax)
@@ -57,7 +53,6 @@ def violin_plotter(df: pd.DataFrame, features: list, split_column : str =None, p
     else:
         sns.violinplot(x="Feature", y="Standardized Value", data=df_melted, inner="quartile", color="skyblue", ax=ax)
 
-    # Improve aesthetics
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
     ax.set_title("Standardized Distribution of Features" + (f" by {split_column}" if split_column else ""))
     return None
@@ -79,16 +74,14 @@ def swarm_plotter(df: pd.DataFrame, features: list, split_column : str =None, ax
     - None (Displays the violin plot inside the given subplot).
     """
 
-    df = df.copy()  # Avoid modifying the original dataset
+    df = df.copy()
 
-    # Standardize the features
     scaler = StandardScaler()
     df_scaled = df.copy()
     df_scaled[features] = scaler.fit_transform(df_scaled[features])
 
-    # Reshape data for Seaborn (Melt the dataframe)
     if split_column and split_column in df.columns:
-        df_scaled[split_column] = df_scaled[split_column].astype('category')  # Ensure categorical type
+        df_scaled[split_column] = df_scaled[split_column].astype('category')
         df_melted = df_scaled.melt(id_vars=[split_column], value_vars=features, 
                                    var_name="Feature", value_name="Standardized Value")
     else:
@@ -98,37 +91,28 @@ def swarm_plotter(df: pd.DataFrame, features: list, split_column : str =None, ax
     if ax is None:
         fig, ax = plt.subplots(figsize=(12, 6)) 
 
-    # Create the violin plot
     if split_column:
         sns.swarmplot(x="Feature", y="Standardized Value", hue=split_column, data=df_melted, ax=ax, palette=palette)
         ax.legend(title=split_column)
 
-        #sns.swarmplot(x="Feature", y="Standardized Value", hue=split_column, data=df_melted, 
-        #               split=True, palette=palette, ax=ax)
-        #ax.legend(title=split_column)
     else:
         sns.swarmplot(x="Feature", y="Standardized Value", data=df_melted, color="skyblue", ax=ax, palette=palette)
-
-    # Improve aesthetics
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
     ax.set_title("Standardized Distribution of Features" + (f" by {split_column}" if split_column else ""))
     return None
 
 def get_feature_importances(features :pd.DataFrame, target: pd.DataFrame, n_trees : int, n_runs: int =1, ax=None) -> Tuple[pd.DataFrame, plt.figure, plt.axes]:
-    # Store feature importances for each run
+
     feature_importances = np.zeros((n_runs, features.shape[1]))
 
-    # Run Random Forest multiple times
     for i in range(n_runs):
         rnf = RandomForestClassifier(n_estimators=n_trees, n_jobs=-1)
         rnf.fit(features, target)
         feature_importances[i, :] = rnf.feature_importances_
 
-    # Compute the average and standard deviation of feature importance
     avg_importances = feature_importances.mean(axis=0)
     std_importances = feature_importances.std(axis=0)
-
-    # Convert to Pandas Series for visualization   
+  
     feat_importances = pd.Series(avg_importances, index=features.columns).sort_values(ascending=True)
     std_sorted = pd.Series(std_importances, index=features.columns).loc[feat_importances.index]
 
@@ -162,7 +146,18 @@ def get_feature_importances(features :pd.DataFrame, target: pd.DataFrame, n_tree
 
 
 
-def evaluate_models(model, datasets, scoring='accuracy'):
+def evaluate_models(model, datasets :dict, scoring : dict='accuracy') -> pd.DataFrame:
+    """
+    Evaluates a model on multiple datasets using cross-validation. Returns a dataframe with the results.
+
+    Parameters:
+    - model: an instance of a model.
+    - datasets: a dictionary containing (possibly several) pandas dataframes.
+    - scoring: a dictionary containing (possibly several) evaluation metrics.
+
+    Returns:
+    - pd.Dataframe: A dataframe containing the results of the models for the different metrics in each dataset.
+    """
     results = []
 
     for label, (X, y) in datasets.items():
@@ -189,7 +184,7 @@ def evaluate_models(model, datasets, scoring='accuracy'):
 
 
 
-def evaluate_multiple_models(models, datasets, scoring='accuracy', groupby='dataset', ordering=None):
+def evaluate_multiple_models(models :dict , datasets: dict, scoring: dict ='accuracy', groupby: str='dataset', ordering :str =None)-> pd.Dataframe:
     """
     Evaluates multiple models on multiple datasets using cross-validation.
     Returns a DataFrame with the evaluation results, without standard deviation.
@@ -230,18 +225,14 @@ def evaluate_multiple_models(models, datasets, scoring='accuracy', groupby='data
 
             results.append(result)
 
-    # Create a DataFrame
     results_df = pd.DataFrame(results)
 
-    # Apply ordering if specified BEFORE setting the index
     if ordering:
-        # Ensure that we sort within each group (dataset or model)
         if groupby == 'dataset':
             results_df.sort_values(by=["Dataset", f"{ordering} Mean"], ascending=[True, False], inplace=True)
         else:  # groupby == 'model'
             results_df.sort_values(by=["Model", f"{ordering} Mean"], ascending=[True, False], inplace=True)
 
-    # Set the index according to the groupby argument
     index_columns = ['Dataset', 'Model'] if groupby == 'dataset' else ['Model', 'Dataset']
     results_df.set_index(index_columns, inplace=True)
 
@@ -249,7 +240,7 @@ def evaluate_multiple_models(models, datasets, scoring='accuracy', groupby='data
 
 
 
-def cross_val_confusion(model, X, y, cv=10):
+def cross_val_confusion(model, X: pd.DataFrame, y: pd.DataFrame, cv: int=10) -> None:
     y_pred = cross_val_predict(model, X, y, cv=cv)
     
     cm = confusion_matrix(y, y_pred)
@@ -262,7 +253,7 @@ def cross_val_confusion(model, X, y, cv=10):
     disp.plot(cmap="Blues")
 
 
-def multiple_cross_val_confusions(models, X, y, cv=10, max_cols=4):
+def multiple_cross_val_confusions(models: dict, X:pd.DataFrame, y:pd.DataFrame, cv=10, max_cols=4)-> None:
     """
     Plots confusion matrices for a dictionary of models using cross-validation predictions, without color bars,
     and displays them with a maximum of 4 per row.
@@ -298,7 +289,7 @@ def multiple_cross_val_confusions(models, X, y, cv=10, max_cols=4):
 
 
 
-def perform_random_search(model, param_grid, X_train, y_train, scoring_metric, n_iter=100, cv=10, n_jobs=-1, verbose=1):
+def perform_random_search(model, param_grid:dict , X_train :pd.DataFrame, y_train:pd.DataFrame, scoring_metric, n_iter: int =100, cv:int=10, n_jobs=-1, verbose=1) -> dict:
     """
     Performs RandomizedSearchCV on a single model with a given parameter grid.
     
@@ -340,7 +331,7 @@ def perform_random_search(model, param_grid, X_train, y_train, scoring_metric, n
 
 
 
-def evaluate_final_model(model, best_params, X_train, y_train, X_test, y_test, modelname=None):
+def evaluate_final_model(model, best_params: dict, X_train: pd.DataFrame, y_train: pd.DataFrame, X_test: pd.DataFrame, y_test: pd.DataFrame, modelname: str=None):
     """
     Trains and evaluates a final model using the provided best hyperparameters.
 
@@ -376,7 +367,7 @@ def evaluate_final_model(model, best_params, X_train, y_train, X_test, y_test, m
     return model, report
 
 
-def multiple_final_confusions(models, X, y, max_cols=4):
+def multiple_final_confusions(models, X: pd.DataFrame, y: pd.DataFrame, max_cols:int =4) -> None:
     """
     Plots confusion matrices for a dictionary of models using cross-validation predictions, without color bars,
     and displays them with a maximum of 4 per row.
@@ -410,7 +401,7 @@ def multiple_final_confusions(models, X, y, max_cols=4):
     plt.tight_layout()
     plt.show()
 
-def generate_lime_reports(model, X_train, X_test, model_name, num_instances=100, instances_per_page=10, output_dir="lime_reports"):
+def generate_lime_reports(model, X_train : pd.DataFrame, X_test : pd.DataFrame, model_name, num_instances=100, instances_per_page=10, output_dir="lime_reports") -> None:
     """
     Generates paginated LIME reports for a given model and dataset.
     
@@ -423,10 +414,10 @@ def generate_lime_reports(model, X_train, X_test, model_name, num_instances=100,
     - instances_per_page: Number of instances per HTML file.
     - output_dir: Directory to save the HTML reports.
     """
-    # Create output directory
+
     os.makedirs(output_dir, exist_ok=True)
     
-    # Initialize LIME explainer
+
     explainer = lime_tabular.LimeTabularExplainer(
         X_train.values,
         feature_names=X_train.columns.tolist(),
@@ -434,7 +425,6 @@ def generate_lime_reports(model, X_train, X_test, model_name, num_instances=100,
         mode='classification'
     )
 
-    # Generate explanations
     html_explanations = []
     for i in range(num_instances):
         exp = explainer.explain_instance(
@@ -444,7 +434,6 @@ def generate_lime_reports(model, X_train, X_test, model_name, num_instances=100,
         html_content = exp.as_html()
         html_explanations.append(html_content)
 
-    # Save paginated reports
     num_pages = (num_instances + instances_per_page - 1) // instances_per_page
     page_files = []
 
@@ -479,7 +468,6 @@ def generate_lime_reports(model, X_train, X_test, model_name, num_instances=100,
             
             outfile.write("</body></html>")
 
-    # Create index file
     index_file = f"{output_dir}/index.html"
     with open(index_file, "w", encoding="utf-8") as outfile:
         outfile.write("""
