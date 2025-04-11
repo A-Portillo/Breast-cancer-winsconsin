@@ -52,7 +52,7 @@ with left_col:
     input_data = {}
     for feature in model_features:
         min_val, max_val = slider_ranges[feature]
-        step = 1.0 if max_val - min_val > 1 else 0.001
+        step = 1.0 if max_val - min_val > 5 else 0.001
         input_data[feature] = st.slider(
             label=feature.replace("_", " ").capitalize(),
             min_value=float(min_val),
