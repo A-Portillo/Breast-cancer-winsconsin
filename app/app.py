@@ -31,17 +31,17 @@ model_features = [
 ]
 
 slider_ranges = {
-    "area_worst": (185.2, 4254.0),
-    "concavity_mean": (0.0, 0.4268),
-    "area_mean": (143.5, 2501.0),
-    "concavity_worst": (0.0, 1.252),
-    "area_se": (6.802, 542.2),
-    "smoothness_worst": (0.07117, 0.2226),
-    "texture_mean": (9.71, 39.28),
-    "concavity_se": (0.0, 0.396),
-    "symmetry_worst": (0.1565, 1.058),
-    "smoothness_mean": (0.05263, 0.1634),
-    "fractal_dimension_worst": (0.05504, 0.2075),
+    "area_worst": (185, 4254.0),
+    "concavity_mean": (0.0, 0.5),
+    "area_mean": (143.0, 2500.0),
+    "concavity_worst": (0.0, 1.5),
+    "area_se": (6.5, 550.0),
+    "smoothness_worst": (0.0, 0.25),
+    "texture_mean": (9.0, 40.0),
+    "concavity_se": (0.0, 0.5),
+    "symmetry_worst": (0.15, 1.5),
+    "smoothness_mean": (0.0, 0.2),
+    "fractal_dimension_worst": (0.0, 0.25),
 }
 
 # === Layout: sliders on the left, output on the right ===
@@ -52,7 +52,7 @@ with left_col:
     input_data = {}
     for feature in model_features:
         min_val, max_val = slider_ranges[feature]
-        step = 1.0 if max_val - min_val > 1 else 0.01 if max_val - min_val > 0.1 else 0.001
+        step = 1.0 if max_val - min_val > 1 else 0.001
         input_data[feature] = st.slider(
             label=feature.replace("_", " ").capitalize(),
             min_value=float(min_val),
