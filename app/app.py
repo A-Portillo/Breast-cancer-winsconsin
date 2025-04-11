@@ -6,14 +6,13 @@ import shap
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 
-# === Load model, scaler, and explainer ===
-with open("model.pkl", "rb") as f:
+with open("app/model.pkl", "rb") as f:
     model = pickle.load(f)
 
-with open("scaler.pkl", "rb") as f:
+with open("app/scaler.pkl", "rb") as f:
     scaler = pickle.load(f)
 
-with open("explainer.pkl", "rb") as f:
+with open("app/explainer.pkl", "rb") as f:
     explainer = pickle.load(f)
 
 # === Define model features and their slider ranges ===
